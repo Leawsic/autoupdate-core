@@ -1,6 +1,46 @@
 [package]
 name = "autoupdate_core"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 
+[lib]
+name = "autoupdate_core"
+crate-type = ["rlib"]
+
 [dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# JSON Schema Draft 2020-12
+jsonschema = "0.29"
+
+# Hash
+sha2 = "0.10"
+hex = "0.4"
+
+# HTTP
+reqwest = { version = "0.12", features = [
+    "rustls-tls",
+    "stream"
+], default-features = false }
+
+# Async
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "io-util",
+    "time",
+    "sync"
+] }
+
+futures-util = "0.3"
+
+# Error handling
+thiserror = "2"
+
+# URL validation
+url = { version = "2", features = ["serde"] }
+
+[dev-dependencies]
+tempfile = "3"
