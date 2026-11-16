@@ -69,7 +69,7 @@ fn default_required() -> bool {
 pub struct FileInfo {
     pub name: String,
     pub size: u64,
-    pub sha264: String,
+    pub sha256: String,
     pub url: String,
 
     #[serde(default)]
