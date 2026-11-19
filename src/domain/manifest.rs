@@ -4,6 +4,7 @@ use crate::domain::resource::ResourceType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+// TODO Manifest 简易字段合规性校验（主要校验部分交由 exporter）
 pub struct Manifest {
     pub schema_version: u32,
     pub pack: PackInfo,
@@ -52,7 +53,7 @@ pub struct ContentEntry {
     pub dependencies: Vec<String>,
 
     #[serde(default)]
-    pub order: Option<String>,
+    pub order: Option<i32>,
 
     #[serde(default)]
     pub shader_loader: Option<String>,

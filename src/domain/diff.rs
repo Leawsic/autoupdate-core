@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::domain::manifest::{ContentEntry, Manifest};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -5,14 +7,13 @@ pub enum ChangeKind {
     Added,
     Removed,
     ContentChanged,
-    // TODO unchanged 是否还有必要记录？
+    // TODO 仅文件名、元数据变化，哈希不变的情况交由 Planner 处理
     Unchanged,
 }
 
 #[derive(Debug, Clone)]
 // 资源变化记录
 pub struct ManifestChange {
-    pub resource_id: String,
     pub kind: ChangeKind,
 
     pub old: Option<ContentEntry>,
@@ -20,28 +21,31 @@ pub struct ManifestChange {
 }
 
 impl ManifestChange {
-    pub fn added(new: &ContentEntry) -> ManifestChange {
+    pub fn resource_id(&self) -> &str {
+        self.old.as_ref().or(self.new.as_ref()).unwrap().id.as_str()
+    }
+}
+
+impl ManifestChange {
+    pub fn added(new: ContentEntry) -> ManifestChange {
         ManifestChange {
-            resource_id: new.id.clone(),
             kind: ChangeKind::Added,
             old: None,
-            new: Some(new.clone()),
+            new: Some(new),
         }
     }
-    pub fn removed(old: &ContentEntry) -> ManifestChange {
+    pub fn removed(old: ContentEntry) -> ManifestChange {
         ManifestChange {
-            resource_id: old.id.clone(),
             kind: ChangeKind::Removed,
-            old: Some(old.clone()),
+            old: Some(old),
             new: None,
         }
     }
-    pub fn both_exist(old: &ContentEntry, new: &ContentEntry, kind: ChangeKind) -> ManifestChange {
+    pub fn both_exist(old: ContentEntry, new: ContentEntry, kind: ChangeKind) -> ManifestChange {
         ManifestChange {
-            resource_id: old.id.clone(),
-            kind: kind,
-            old: Some(old.clone()),
-            new: Some(new.clone()),
+            kind,
+            old: Some(old),
+            new: Some(new),
         }
     }
 }
@@ -63,27 +67,33 @@ impl ManifestDiffService {
             None => {
                 return all_new_diff(new);
             }
-            Some(content) => {
-                for entry in content.contents.clone() {
-                    // TODO 频繁比较是否会有性能问题
-                    if !new.contents.iter().any(|x| x.id == entry.id) {
-                        res.changes.push(ManifestChange::removed(&entry));
-                    } else {
-                        let n = new.contents.iter().find(|&x| x.id == entry.id).unwrap();
-                        if n.file.sha256 != entry.file.sha256 {
+            Some(ctnt) => {
+                let old_map: HashMap<&str, &ContentEntry> =
+                    ctnt.contents.iter().map(|c| (c.id.as_str(), c)).collect();
+                let new_map: HashMap<&str, &ContentEntry> =
+                    new.contents.iter().map(|c| (c.id.as_str(), c)).collect();
+                for entry in &ctnt.contents {
+                    match new_map.get(entry.id.as_str()) {
+                        Some(e) => {
+                            let k = if entry.file.sha256 != e.file.sha256 {
+                                ChangeKind::ContentChanged
+                            } else {
+                                ChangeKind::Unchanged
+                            };
                             res.changes.push(ManifestChange::both_exist(
-                                &entry,
-                                n,
-                                ChangeKind::ContentChanged,
-                            ));
-                            continue;
-                        } else {
-                            res.changes.push(ManifestChange::both_exist(
-                                &entry,
-                                n,
-                                ChangeKind::Unchanged,
+                                entry.clone(),
+                                (*e).clone(),
+                                k,
                             ));
                         }
+                        None => {
+                            res.changes.push(ManifestChange::removed(entry.clone()));
+                        }
+                    }
+                }
+                for new_entry in &new.contents {
+                    if let None = old_map.get(new_entry.id.as_str()) {
+                        res.changes.push(ManifestChange::added(new_entry.clone()));
                     }
                 }
             }
@@ -96,8 +106,8 @@ fn all_new_diff(new: &Manifest) -> ManifestDiff {
     let mut res = ManifestDiff {
         changes: Vec::new(),
     };
-    for entry in new.contents.clone() {
-        res.changes.push(ManifestChange::added(&entry));
+    for entry in new.contents.iter() {
+        res.changes.push(ManifestChange::added(entry.clone()));
     }
     res
 }

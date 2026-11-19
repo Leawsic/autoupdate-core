@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ResourceType {
     Mod,
     ResourcePack,
@@ -9,7 +10,7 @@ pub enum ResourceType {
 }
 
 impl ResourceType {
-    pub fn directory(&self) -> &str {
+    pub fn directory(&self) -> &'static str {
         match self {
             Self::Mod => "mods",
             Self::ResourcePack => "resourcepacks",
